@@ -1,0 +1,15 @@
+<!doctype html>
+<html lang="ar" dir="rtl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><title>نظام حياتي</title></head>
+<body style="background:#06201F">
+<script>
+/* Assembles the app from src/ at load time (same output as build.py). */
+(async()=>{
+  const g=p=>fetch('src/'+p).then(r=>{if(!r.ok)throw new Error(p);return r.text()});
+  try{
+    const [t,c,a,b]=await Promise.all([g('template.html'),g('style.css'),g('app-1.js'),g('app-2.js')]);
+    const html='<!doctype html><html lang="ar" dir="rtl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"></head><body>'+t.split('/*STYLE*/').join(c).split('/*SCRIPT*/').join(a+b)+'</body></html>';
+    document.open();document.write(html);document.close();
+  }catch(e){document.body.textContent='تعذّر تحميل التطبيق: '+e.message}
+})();
+</script>
+</body></html>
