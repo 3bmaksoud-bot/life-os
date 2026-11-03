@@ -220,6 +220,7 @@ window.addEventListener('hashchange',()=>{const k=location.hash.slice(1);if(TABS
 
 render();
 initDb();
+(()=>{const m=(location.hash||'').match(/^#sync=([A-Za-z0-9-]{24,64})$/);if(!m)return;try{history.replaceState(null,'',location.pathname+location.search)}catch(e){}if(!syncCode)joinCode(m[1]);else if(syncCode!==m[1])toast('الجهاز ده مربوط بكود تاني')})();
 cloudPull();setInterval(cloudPull,20000);
 document.addEventListener('visibilitychange',()=>{if(!document.hidden)cloudPull()});
 })();
