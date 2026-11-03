@@ -172,7 +172,7 @@ const chips=(list)=>list.map(s=>`<span class="chip hc${hidx(s.hid)}">${hidx(s.hi
 const monthShifts=ym=>S.shifts.filter(s=>s.date.startsWith(ym));
 const topicProgress=()=>{const n=S.topics.length;return n?Math.round(sum(S.topics,t=>t.st===2?1:t.st===1?.5:0)/n*100):0};
 const studyWeek=()=>{const t=todayStr(),from=addDays(t,-6);return sum(S.sessions.filter(x=>x.date>=from&&x.date<=t),x=>x.h)};
-const monthIncome=ym=>sum(monthShifts(ym),earn)+sum(S.income.filter(i=>i.date.startsWith(ym)),i=>i.amt);
+const monthIncome=ym=>sum(monthShifts(ym).filter(s=>s.paid),earn)+sum(S.income.filter(i=>i.date.startsWith(ym)),i=>i.amt);
 const monthSpend=ym=>sum(S.expenses.filter(e=>e.date.startsWith(ym)),e=>e.amt);
 const commitTotal=()=>sum(S.commits,c=>c.amt);
 const duesAll=()=>sum(S.shifts.filter(s=>!s.paid),earn);
@@ -278,6 +278,7 @@ function vWork(){
     return `<tr><td>${esc(h.name)}</td><td>${l.length}</td><td>${money(e)}</td><td>${money(due)}</td><td>${l.length?`<button class="btn ghost sm" data-a="payAll" data-id="${h.id}">${due>0?'تم الاستلام':'تراجع'}</button>`:''}</td></tr>`;
   }).join('');
   const tN=ms.length,tE=sum(ms,earn),tD=sum(ms.filter(s=>!s.paid),earn);
+  const msl=[...ms].sort((a,b)=>a.date.localeCompare(b.date));
   const cases=[...S.cases].sort((a,b)=>b.date.localeCompare(a.date)).slice(0,25);
   const cm=S.cases.filter(c=>c.date.startsWith(ym));
   return `
@@ -288,6 +289,7 @@ function vWork(){
     ${card('جدول النوبات',`<div class="cal">${cells}</div>
       <div class="legend">${S.hospitals.map((h,i)=>`<span><span class="chip hc${i}">${i+1}</span> ${esc(h.name)}</span>`).join('')}<span>كل نوبة 24 ساعة (8ص–8ص)</span></div>
       <div class="stats"><div class="stat"><b>${ms.length}</b><span>نوبة</span></div><div class="stat"><b>${nf(hrs)}</b><span>ساعة شغل</span></div></div>`)}
+    ${card('نوبات الشهر',`<p class="sub">دوس "تم الاستلام" لما تقبض النوبة، وساعتها بس بتتحسب في الفلوس.</p>`+(msl.length?`<ul class="list">${msl.map(s=>`<li><span class="chip hc${hidx(s.hid)}">${hidx(s.hid)+1}</span><div class="grow"><div>${dayName(s.date)} ${fmtDate(s.date,{day:'numeric',month:'short'})}</div><div class="muted" style="font-size:12.5px">${esc(hname(s.hid))} · ${money(earn(s))}</div></div><button class="btn sm${s.paid?' ghost':''}" data-a="paid" data-id="${s.id}">${s.paid?'اتسلّم ✓':'تم الاستلام'}</button></li>`).join('')}</ul>`:empty('مفيش نوبات متسجلة الشهر ده. اختار المستشفى واضغط على اليوم.')))}
     ${card('المستحقات حسب المكان',`<p class="sub">محسوبة من سعر النوبة لكل مستشفى</p><div class="scroll-x"><table><thead><tr><th>المستشفى</th><th>نوبات</th><th>المستحق</th><th>لسه</th><th></th></tr></thead><tbody>${rows}</tbody><tfoot><tr><td>الإجمالي</td><td>${tN}</td><td>${money(tE)}</td><td>${money(tD)}</td><td></td></tr></tfoot></table></div>
       <div class="stats"><div class="stat"><b>${money(tE)}</b><span>إجمالي حساب الشهر</span></div><div class="stat"><b>${money(tE-tD)}</b><span>اتسلّم</span></div><div class="stat"><b>${money(tD)}</b><span>لسه متبقي</span></div></div>`,monthName(ym))}
     ${card('المستشفيات وأسعار النوبات',`<ul class="list">${S.hospitals.map(h=>`<li style="flex-wrap:wrap"><input class="grow" style="flex:1 1 130px" value="${esc(h.name)}" data-c="hname" data-id="${h.id}" aria-label="اسم المستشفى"><label class="f" style="flex:1 1 90px">سعر النوبة (24 ساعة)<input type="number" inputmode="decimal" min="0" step="any" value="${h.r24||''}" placeholder="0" data-c="r24" data-id="${h.id}"></label>${del('hospitals',h.id)}</li>`).join('')}</ul>
@@ -328,19 +330,19 @@ function vMoney(){
   const ym=ui.ym,t=todayStr();
   const shiftIn=monthShifts(ym),inc=S.income.filter(i=>i.date.startsWith(ym));
   const ex=S.expenses.filter(e=>e.date.startsWith(ym)).sort((a,b)=>b.date.localeCompare(a.date));
-  const shiftSum=sum(shiftIn,earn),incSum=sum(inc,i=>i.amt),spend=sum(ex,e=>e.amt);
+  const shiftSum=sum(shiftIn.filter(s=>s.paid),earn),incSum=sum(inc,i=>i.amt),spend=sum(ex,e=>e.amt);
   const net=shiftSum+incSum-spend;
   const byCat=CATS.map(c=>[c,sum(ex.filter(e=>e.cat===c),e=>e.amt)]).filter(x=>x[1]>0);
   const cmax=Math.max(1,...byCat.map(x=>x[1]));
   const sv=sum(S.savings.filter(x=>x.kind==='ادخار'),x=>x.amt),iv=sum(S.savings.filter(x=>x.kind==='استثمار'),x=>x.amt);
-  const perH=S.hospitals.map(h=>[h.name,sum(shiftIn.filter(s=>s.hid===h.id),earn)]).filter(x=>x[1]>0);
+  const perH=S.hospitals.map(h=>[h.name,sum(shiftIn.filter(s=>s.hid===h.id&&s.paid),earn)]).filter(x=>x[1]>0);
   return `
   <header class="top"><div><h1>الفلوس</h1><p>الدخل والمصروفات والمدخرات</p></div><span class="sync" id="sync"></span></header>
   ${monthNav()}
   <div class="grid">
     ${card('صافي الشهر',`<div class="big num" style="color:${net<0?'var(--bad)':'var(--ink)'}">${money(net)}</div><p class="sub" style="margin:2px 0 0">الدخل − المصروفات</p>
       <div class="stats"><div class="stat"><b>${money(shiftSum+incSum)}</b><span>الدخل</span></div><div class="stat"><b>${money(spend)}</b><span>المصروفات</span></div><div class="stat"><b>${money(duesAll())}</b><span>مستحقات لسه ما اتسلمتش</span></div></div>`,monthName(ym))}
-    ${card('الدخل',`<ul class="list">${perH.map(([n,v])=>`<li><span class="grow">نوبات ${esc(n)}</span><b class="num">${money(v)}</b></li>`).join('')}${inc.map(i=>`<li><span class="grow">${esc(i.src)} <span class="muted" style="font-size:12.5px">${fmtDate(i.date,{day:'numeric',month:'short'})}</span></span><b class="num">${money(i.amt)}</b>${del('income',i.id)}</li>`).join('')}</ul>${perH.length||inc.length?'':empty('الدخل من النوبات بيظهر هنا بعد ما تحدد سعر النوبة لكل مستشفى في تبويب الشغل.')}
+    ${card('الدخل',`<ul class="list">${perH.map(([n,v])=>`<li><span class="grow">نوبات ${esc(n)} (مستلمة)</span><b class="num">${money(v)}</b></li>`).join('')}${inc.map(i=>`<li><span class="grow">${esc(i.src)} <span class="muted" style="font-size:12.5px">${fmtDate(i.date,{day:'numeric',month:'short'})}</span></span><b class="num">${money(i.amt)}</b>${del('income',i.id)}</li>`).join('')}</ul>${perH.length||inc.length?'':empty('دخل النوبات بيظهر هنا بعد ما تدوس "تم الاستلام" على النوبة في تبويب الشغل.')}
       <form class="add" data-f="income"><input type="date" name="date" value="${t}" required aria-label="التاريخ"><input name="src" placeholder="مصدر دخل تاني" required autocomplete="off"><input type="number" name="amt" min="0" step="any" inputmode="decimal" placeholder="المبلغ" required><button class="btn" type="submit">إضافة</button></form>`)}
     ${card('المصروفات',(byCat.length?byCat.map(([c,v])=>`<div class="catbar"><span>${c}</span><div class="bar"><i style="width:${Math.round(v/cmax*100)}%"></i></div><b class="num">${nf(v)}</b></div>`).join(''):'')+
       `<form class="add" data-f="expense"><input type="date" name="date" value="${t}" required aria-label="التاريخ"><select name="cat" aria-label="التصنيف">${CATS.map(c=>`<option>${c}</option>`).join('')}</select><input type="number" name="amt" min="0" step="any" inputmode="decimal" placeholder="المبلغ" required><input name="note" placeholder="ملاحظة" autocomplete="off"><button class="btn" type="submit">إضافة</button></form>`+
