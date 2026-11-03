@@ -62,6 +62,7 @@ function save(){
   try{localStorage.setItem(LS,JSON.stringify(S))}catch(e){}
   clearTimeout(saveT);
   if(dbDoc){syncState='saving';saveT=setTimeout(pushRemote,700)}
+  if(syncCode)cloudSave();
 }
 async function pushRemote(){
   if(!dbDoc)return;
@@ -97,6 +98,51 @@ async function initDb(){
       }
     },()=>{syncState='local';setSync('local')});
   }catch(e){}
+}
+
+/* ---------- cloud sync (Supabase RPC, secret code) ---------- */
+const SB='https://fwxpuejpnyylqjwfmdhh.supabase.co/rest/v1/rpc/',SBK='sb_publishable_WRpo_LiP2Po7KBhLanEF7g_fWD0LBLO',LSC='lifeos.sync';
+let syncCode='';try{syncCode=localStorage.getItem(LSC)||''}catch(e){}
+const rpc=(fn,body)=>fetch(SB+fn,{method:'POST',headers:{apikey:SBK,'Content-Type':'application/json'},body:JSON.stringify(body)}).then(r=>{if(!r.ok)throw new Error(r.status);return r.json()});
+let cT=0,cBusy=false,cDirty=false;
+function cloudSave(){if(!syncCode)return;syncState='saving';clearTimeout(cT);cT=setTimeout(cloudPush,900)}
+async function cloudPush(){
+  if(!syncCode)return;
+  if(cBusy){cDirty=true;return}
+  cBusy=true;
+  try{await rpc('lifeos_put',{p_code:syncCode,p_data:S});syncState='saved'}catch(e){syncState='local'}
+  cBusy=false;setSync(syncState);
+  if(cDirty){cDirty=false;cloudPush()}
+}
+async function cloudPull(){
+  if(!syncCode||cBusy)return;
+  try{
+    const r=await rpc('lifeos_get',{p_code:syncCode});
+    if(!r||!r.data){if(S.updated)await cloudPush();return}
+    const ru=+r.updated||0;
+    if(ru>(S.updated||0)){
+      if(editing())return;
+      S=Object.assign(DEF(),r.data);norm();
+      try{localStorage.setItem(LS,JSON.stringify(S))}catch(e){}
+      render();
+    }else if(ru<(S.updated||0)){await cloudPush();return}
+    syncState='saved';setSync('saved');
+  }catch(e){syncState='local';setSync('local')}
+}
+async function joinCode(c,fresh){
+  try{
+    const r=fresh?null:await rpc('lifeos_get',{p_code:c});
+    syncCode=c;try{localStorage.setItem(LSC,c)}catch(e){}
+    if(r&&r.data){
+      try{localStorage.setItem('lifeos.prejoin',JSON.stringify(S))}catch(e){}
+      S=Object.assign(DEF(),r.data);norm();
+      try{localStorage.setItem(LS,JSON.stringify(S))}catch(e){}
+      syncState='saved';render();toast('اتربط وتم تحميل بياناتك');
+    }else{
+      if(!S.updated)S.updated=Date.now();
+      await cloudPush();render();toast(fresh?'اتفعلت المزامنة':'الكود جديد. رفعت بيانات الجهاز');
+    }
+  }catch(e){syncCode='';try{localStorage.removeItem(LSC)}catch(x){}toast('مقدرتش أتصل بالسيرفر. جرب تاني')}
 }
 
 /* ---------- domain logic ---------- */
@@ -210,7 +256,9 @@ function vHome(){
     ${card('المواعيد القادمة',(appts.length?`<ul class="list" style="margin-top:6px">${appts.map(a=>`<li><div class="num" style="min-width:76px"><b>${fmtDate(a.date,{day:'numeric',month:'short'})}</b><div class="muted" style="font-size:12px">${esc(a.time||'')}</div></div><span class="grow">${esc(a.title)}</span>${del('appts',a.id)}</li>`).join('')}</ul>`:empty('مفيش مواعيد قادمة.'))+
       `<form class="add" data-f="appt"><input type="date" name="date" value="${t}" required aria-label="التاريخ"><input type="time" name="time" aria-label="الوقت"><input name="title" class="wide" placeholder="عنوان الموعد" required autocomplete="off"><button class="btn" type="submit">إضافة</button></form>`)}
     ${card('الفلوس هذا الشهر',`<div class="big num" style="color:${net<0?'var(--bad)':'var(--ink)'}">${money(net)}</div><p class="sub" style="margin:2px 0 0">صافي بعد المصروفات</p><div class="stats"><div class="stat"><b>${money(capTotal())}</b><span>رأس المال</span></div><div class="stat"><b>${money(duesAll())}</b><span>مستحقات لسه ما اتسلمتش</span></div></div>`)}
-    ${card('نسخة احتياطية',`<p class="sub">نزّل كل بياناتك كملف JSON. تقدر تبعته لي في الشات وأرفعه على Supabase.</p><button class="btn ghost" data-a="backup">تنزيل نسخة احتياطية</button>`)}
+    ${card('المزامنة بين الأجهزة',syncCode
+      ?`<p class="sub">المزامنة شغالة. على أي جهاز تاني الصق نفس الكود في خانة الربط.</p><div class="row"><input readonly dir="ltr" value="${esc(syncCode)}" aria-label="كود المزامنة"><button class="btn ghost sm" data-a="syncCopy">نسخ</button></div><div class="row wrap" style="margin-top:10px"><button class="btn ghost sm" data-a="backup">نسخة احتياطية</button><button class="btn ghost sm" data-a="syncOff">إيقاف على الجهاز ده</button></div>`
+      :`<p class="sub">فعّل المزامنة عشان بياناتك تتحفظ وتظهر على كل أجهزتك.</p><button class="btn" data-a="syncNew">تفعيل المزامنة (كود جديد)</button><div class="add"><input id="sc" dir="ltr" placeholder="عندك كود من جهاز تاني؟ الصقه هنا" autocomplete="off"><button class="btn ghost" data-a="syncSet">ربط</button></div><div class="row" style="margin-top:10px"><button class="btn ghost sm" data-a="backup">نسخة احتياطية</button></div>`)}
   </div>`;
 }
 
@@ -229,6 +277,7 @@ function vWork(){
     const l=ms.filter(s=>s.hid===h.id),e=sum(l,earn),due=sum(l.filter(s=>!s.paid),earn);
     return `<tr><td>${esc(h.name)}</td><td>${l.length}</td><td>${money(e)}</td><td>${money(due)}</td><td>${l.length?`<button class="btn ghost sm" data-a="payAll" data-id="${h.id}">${due>0?'تم الاستلام':'تراجع'}</button>`:''}</td></tr>`;
   }).join('');
+  const tN=ms.length,tE=sum(ms,earn),tD=sum(ms.filter(s=>!s.paid),earn);
   const cases=[...S.cases].sort((a,b)=>b.date.localeCompare(a.date)).slice(0,25);
   const cm=S.cases.filter(c=>c.date.startsWith(ym));
   return `
@@ -239,7 +288,8 @@ function vWork(){
     ${card('جدول النوبات',`<div class="cal">${cells}</div>
       <div class="legend">${S.hospitals.map((h,i)=>`<span><span class="chip hc${i}">${i+1}</span> ${esc(h.name)}</span>`).join('')}<span>كل نوبة 24 ساعة (8ص–8ص)</span></div>
       <div class="stats"><div class="stat"><b>${ms.length}</b><span>نوبة</span></div><div class="stat"><b>${nf(hrs)}</b><span>ساعة شغل</span></div></div>`)}
-    ${card('المستحقات حسب المكان',`<p class="sub">محسوبة من سعر النوبة لكل مستشفى</p><div class="scroll-x"><table><thead><tr><th>المستشفى</th><th>نوبات</th><th>المستحق</th><th>لسه</th><th></th></tr></thead><tbody>${rows}</tbody></table></div>`,monthName(ym))}
+    ${card('المستحقات حسب المكان',`<p class="sub">محسوبة من سعر النوبة لكل مستشفى</p><div class="scroll-x"><table><thead><tr><th>المستشفى</th><th>نوبات</th><th>المستحق</th><th>لسه</th><th></th></tr></thead><tbody>${rows}</tbody><tfoot><tr><td>الإجمالي</td><td>${tN}</td><td>${money(tE)}</td><td>${money(tD)}</td><td></td></tr></tfoot></table></div>
+      <div class="stats"><div class="stat"><b>${money(tE)}</b><span>إجمالي حساب الشهر</span></div><div class="stat"><b>${money(tE-tD)}</b><span>اتسلّم</span></div><div class="stat"><b>${money(tD)}</b><span>لسه متبقي</span></div></div>`,monthName(ym))}
     ${card('المستشفيات وأسعار النوبات',`<ul class="list">${S.hospitals.map(h=>`<li style="flex-wrap:wrap"><input class="grow" style="flex:1 1 130px" value="${esc(h.name)}" data-c="hname" data-id="${h.id}" aria-label="اسم المستشفى"><label class="f" style="flex:1 1 90px">سعر النوبة (24 ساعة)<input type="number" inputmode="decimal" min="0" step="any" value="${h.r24||''}" placeholder="0" data-c="r24" data-id="${h.id}"></label>${del('hospitals',h.id)}</li>`).join('')}</ul>
       <form class="add" data-f="hospital"><input name="name" placeholder="مستشفى جديدة" required autocomplete="off"><button class="btn" type="submit">إضافة</button></form>`)}
     ${card('سجل الحالات والإجراءات',`<p class="sub">${cm.length} حالة في ${monthName(ym)}</p>

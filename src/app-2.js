@@ -166,6 +166,10 @@ const A={
   payAll(e){const l=monthShifts(ui.ym).filter(s=>s.hid===e.id);const anyDue=l.some(s=>!s.paid);l.forEach(s=>s.paid=anyDue);commit()},
   topic(e){const x=find('topics',e.id);if(x){x.st=(x.st+1)%3;commit()}},
   habit(e){const t=todayStr(),l=S.habitLog[t]||(S.habitLog[t]=[]),i=l.indexOf(e.id);i<0?l.push(e.id):l.splice(i,1);commit()},
+  syncNew(){const a=new Uint8Array(28);crypto.getRandomValues(a);const ch='abcdefghjkmnpqrstuvwxyz23456789';const c=Array.from(a,b=>ch[b%ch.length]).join('').match(/.{4}/g).join('-');joinCode(c,true)},
+  syncSet(){const v=(($('#sc')||{}).value||'').trim();if(v.length<24){toast('الكود غير صحيح');return}joinCode(v)},
+  syncCopy(){try{navigator.clipboard.writeText(syncCode);toast('اتنسخ الكود')}catch(e){toast('انسخه يدوي من الخانة')}},
+  syncOff(){syncCode='';try{localStorage.removeItem(LSC)}catch(e){}syncState='local';render();toast('اتوقفت المزامنة على الجهاز ده')},
   backup(){(async()=>{try{const d=await window.claude.use('downloads');if(!d){toast('التنزيل مش متاح هنا');return}await d.save({filename:'lifeos-backup-'+todayStr()+'.json',data:JSON.stringify(S,null,1)})}catch(e){if(!e||e.code!=='declined')toast('ما قدرتش أحفظ الملف')}})()},
   del(e){if(!OK_DEL.includes(e.k))return;S[e.k]=S[e.k].filter(x=>x.id!==e.id);commit()}
 };
@@ -216,4 +220,6 @@ window.addEventListener('hashchange',()=>{const k=location.hash.slice(1);if(TABS
 
 render();
 initDb();
+cloudPull();setInterval(cloudPull,20000);
+document.addEventListener('visibilitychange',()=>{if(!document.hidden)cloudPull()});
 })();

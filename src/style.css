@@ -224,3 +224,4 @@ thead th:first-child{border-radius:0 10px 10px 0}thead th:last-child{border-radi
 .cal button.d{background:transparent}
 .cal button.d.today .n{background:var(--accent);color:var(--accent-ink);border-radius:50%;width:26px;height:26px;display:grid;place-items:center;font-weight:700}
 @media (prefers-reduced-motion:no-preference){.btn,.chk,nav.tabs button{transition:background .15s,color .15s}}
+tfoot td{border-top:2px solid var(--line);font-weight:700;color:var(--accent)}
