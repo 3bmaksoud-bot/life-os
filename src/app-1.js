@@ -150,6 +150,9 @@ const hosp=id=>S.hospitals.find(h=>h.id===id);
 const hname=id=>{const h=hosp(id);return h?h.name:'—'};
 const earn=s=>{const h=hosp(s.hid);if(!h)return 0;return +h.r24||0};
 const shiftsOn=d=>S.shifts.filter(s=>s.date===d);
+const recvYm=s=>(s.paidAt||s.date).slice(0,7);
+const recvIn=ym=>S.shifts.filter(s=>s.paid&&recvYm(s)===ym);
+const carryList=ym=>S.shifts.filter(s=>!s.paid&&s.date.slice(0,7)<ym);
 function shiftHoursOn(date){
   const ds=parse(date),de=parse(addDays(date,1));let tot=0;
   for(const sd of [addDays(date,-1),date]){
@@ -172,7 +175,7 @@ const chips=(list)=>list.map(s=>`<span class="chip hc${hidx(s.hid)}">${hidx(s.hi
 const monthShifts=ym=>S.shifts.filter(s=>s.date.startsWith(ym));
 const topicProgress=()=>{const n=S.topics.length;return n?Math.round(sum(S.topics,t=>t.st===2?1:t.st===1?.5:0)/n*100):0};
 const studyWeek=()=>{const t=todayStr(),from=addDays(t,-6);return sum(S.sessions.filter(x=>x.date>=from&&x.date<=t),x=>x.h)};
-const monthIncome=ym=>sum(monthShifts(ym).filter(s=>s.paid),earn)+sum(S.income.filter(i=>i.date.startsWith(ym)),i=>i.amt);
+const monthIncome=ym=>sum(recvIn(ym),earn)+sum(S.income.filter(i=>i.date.startsWith(ym)),i=>i.amt);
 const monthSpend=ym=>sum(S.expenses.filter(e=>e.date.startsWith(ym)),e=>e.amt);
 const commitTotal=()=>sum(S.commits,c=>c.amt);
 const duesAll=()=>sum(S.shifts.filter(s=>!s.paid),earn);
@@ -273,12 +276,13 @@ function vWork(){
     cells+=`<button class="d${ds===t?' today':''}" data-a="shiftDay" data-d="${ds}" aria-label="${dayName(ds)} ${d}"><span class="n">${d}</span><span class="dots">${sh.map(s=>`<i class="dot hc${hidx(s.hid)}"></i>`).join('')}</span></button>`;
   }
   const hrs=sum(ms,s=>TYPES[s.type].h);
+  const carry=carryList(ym);
   const rows=S.hospitals.map(h=>{
-    const l=ms.filter(s=>s.hid===h.id),e=sum(l,earn),due=sum(l.filter(s=>!s.paid),earn);
-    return `<tr><td>${esc(h.name)}</td><td>${l.length}</td><td>${money(e)}</td><td>${money(due)}</td><td>${l.length?`<button class="btn ghost sm" data-a="payAll" data-id="${h.id}">${due>0?'تم الاستلام':'تراجع'}</button>`:''}</td></tr>`;
+    const l=ms.filter(s=>s.hid===h.id),e=sum(l,earn),cr=sum(carry.filter(s=>s.hid===h.id),earn),due=sum(l.filter(s=>!s.paid),earn)+cr;
+    return `<tr><td>${esc(h.name)}</td><td>${l.length}</td><td>${money(e)}</td><td>${money(cr)}</td><td>${money(due)}</td><td>${l.length||cr?`<button class="btn ghost sm" data-a="payAll" data-id="${h.id}">${due>0?'تم الاستلام':'تراجع'}</button>`:''}</td></tr>`;
   }).join('');
-  const tN=ms.length,tE=sum(ms,earn),tD=sum(ms.filter(s=>!s.paid),earn);
-  const msl=[...ms].sort((a,b)=>a.date.localeCompare(b.date));
+  const tN=ms.length,tE=sum(ms,earn),tC=sum(carry,earn),tD=sum(ms.filter(s=>!s.paid),earn)+tC,tR=sum(recvIn(ym),earn);
+  const msl=[...ms,...carry].sort((a,b)=>a.date.localeCompare(b.date));
   const cases=[...S.cases].sort((a,b)=>b.date.localeCompare(a.date)).slice(0,25);
   const cm=S.cases.filter(c=>c.date.startsWith(ym));
   return `
@@ -289,9 +293,9 @@ function vWork(){
     ${card('جدول النوبات',`<div class="cal">${cells}</div>
       <div class="legend">${S.hospitals.map((h,i)=>`<span><span class="chip hc${i}">${i+1}</span> ${esc(h.name)}</span>`).join('')}<span>كل نوبة 24 ساعة (8ص–8ص)</span></div>
       <div class="stats"><div class="stat"><b>${ms.length}</b><span>نوبة</span></div><div class="stat"><b>${nf(hrs)}</b><span>ساعة شغل</span></div></div>`)}
-    ${card('نوبات الشهر',`<p class="sub">دوس "تم الاستلام" لما تقبض النوبة، وساعتها بس بتتحسب في الفلوس.</p>`+(msl.length?`<ul class="list">${msl.map(s=>`<li><span class="chip hc${hidx(s.hid)}">${hidx(s.hid)+1}</span><div class="grow"><div>${dayName(s.date)} ${fmtDate(s.date,{day:'numeric',month:'short'})}</div><div class="muted" style="font-size:12.5px">${esc(hname(s.hid))} · ${money(earn(s))}</div></div><button class="btn sm${s.paid?' ghost':''}" data-a="paid" data-id="${s.id}">${s.paid?'اتسلّم ✓':'تم الاستلام'}</button></li>`).join('')}</ul>`:empty('مفيش نوبات متسجلة الشهر ده. اختار المستشفى واضغط على اليوم.')))}
-    ${card('المستحقات حسب المكان',`<p class="sub">محسوبة من سعر النوبة لكل مستشفى</p><div class="scroll-x"><table><thead><tr><th>المستشفى</th><th>نوبات</th><th>المستحق</th><th>لسه</th><th></th></tr></thead><tbody>${rows}</tbody><tfoot><tr><td>الإجمالي</td><td>${tN}</td><td>${money(tE)}</td><td>${money(tD)}</td><td></td></tr></tfoot></table></div>
-      <div class="stats"><div class="stat"><b>${money(tE)}</b><span>إجمالي حساب الشهر</span></div><div class="stat"><b>${money(tE-tD)}</b><span>اتسلّم</span></div><div class="stat"><b>${money(tD)}</b><span>لسه متبقي</span></div></div>`,monthName(ym))}
+    ${card('نوبات الشهر',`<p class="sub">دوس "تم الاستلام" لما تقبض النوبة، وساعتها بس بتتحسب في الفلوس. واللي ما اتسلمتش بتترحّل للشهر اللي بعده.</p>`+(msl.length?`<ul class="list">${msl.map(s=>`<li><span class="chip hc${hidx(s.hid)}">${hidx(s.hid)+1}</span><div class="grow"><div>${dayName(s.date)} ${fmtDate(s.date,{day:'numeric',month:'short'})}${s.date.slice(0,7)<ym?' <span class="pill warn">مرحّلة</span>':''}</div><div class="muted" style="font-size:12.5px">${esc(hname(s.hid))} · ${money(earn(s))}</div></div><button class="btn sm${s.paid?' ghost':''}" data-a="paid" data-id="${s.id}">${s.paid?'اتسلّم ✓':'تم الاستلام'}</button></li>`).join('')}</ul>`:empty('مفيش نوبات متسجلة الشهر ده. اختار المستشفى واضغط على اليوم.')))}
+    ${card('المستحقات حسب المكان',`<p class="sub">محسوبة من سعر النوبة لكل مستشفى. اللي ما اتسلمش بيتحسب مرحّل للشهر اللي بعده.</p><div class="scroll-x"><table><thead><tr><th>المستشفى</th><th>نوبات</th><th>حساب الشهر</th><th>مرحّل</th><th>لسه</th><th></th></tr></thead><tbody>${rows}</tbody><tfoot><tr><td>الإجمالي</td><td>${tN}</td><td>${money(tE)}</td><td>${money(tC)}</td><td>${money(tD)}</td><td></td></tr></tfoot></table></div>
+      <div class="stats"><div class="stat"><b>${money(tE)}</b><span>إجمالي حساب الشهر</span></div><div class="stat"><b>${money(tR)}</b><span>اتسلّم في الشهر ده</span></div><div class="stat"><b>${money(tD)}</b><span>لسه متبقي (شامل المرحّل ${money(tC)})</span></div></div>`,monthName(ym))}
     ${card('المستشفيات وأسعار النوبات',`<ul class="list">${S.hospitals.map(h=>`<li style="flex-wrap:wrap"><input class="grow" style="flex:1 1 130px" value="${esc(h.name)}" data-c="hname" data-id="${h.id}" aria-label="اسم المستشفى"><label class="f" style="flex:1 1 90px">سعر النوبة (24 ساعة)<input type="number" inputmode="decimal" min="0" step="any" value="${h.r24||''}" placeholder="0" data-c="r24" data-id="${h.id}"></label>${del('hospitals',h.id)}</li>`).join('')}</ul>
       <form class="add" data-f="hospital"><input name="name" placeholder="مستشفى جديدة" required autocomplete="off"><button class="btn" type="submit">إضافة</button></form>`)}
     ${card('سجل الحالات والإجراءات',`<p class="sub">${cm.length} حالة في ${monthName(ym)}</p>
@@ -330,12 +334,12 @@ function vMoney(){
   const ym=ui.ym,t=todayStr();
   const shiftIn=monthShifts(ym),inc=S.income.filter(i=>i.date.startsWith(ym));
   const ex=S.expenses.filter(e=>e.date.startsWith(ym)).sort((a,b)=>b.date.localeCompare(a.date));
-  const shiftSum=sum(shiftIn.filter(s=>s.paid),earn),incSum=sum(inc,i=>i.amt),spend=sum(ex,e=>e.amt);
+  const shiftSum=sum(recvIn(ym),earn),incSum=sum(inc,i=>i.amt),spend=sum(ex,e=>e.amt);
   const net=shiftSum+incSum-spend;
   const byCat=CATS.map(c=>[c,sum(ex.filter(e=>e.cat===c),e=>e.amt)]).filter(x=>x[1]>0);
   const cmax=Math.max(1,...byCat.map(x=>x[1]));
   const sv=sum(S.savings.filter(x=>x.kind==='ادخار'),x=>x.amt),iv=sum(S.savings.filter(x=>x.kind==='استثمار'),x=>x.amt);
-  const perH=S.hospitals.map(h=>[h.name,sum(shiftIn.filter(s=>s.hid===h.id&&s.paid),earn)]).filter(x=>x[1]>0);
+  const perH=S.hospitals.map(h=>[h.name,sum(recvIn(ym).filter(s=>s.hid===h.id),earn)]).filter(x=>x[1]>0);
   return `
   <header class="top"><div><h1>الفلوس</h1><p>الدخل والمصروفات والمدخرات</p></div><span class="sync" id="sync"></span></header>
   ${monthNav()}
