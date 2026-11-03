@@ -131,7 +131,7 @@ function sheetHtml(){
   const d=ui.sheet,sh=shiftsOn(d);
   return `<div class="sheet-bg" data-a="closeSheet"><div class="sheet" role="dialog" aria-modal="true" aria-label="نوبات اليوم">
     <div class="row between"><h3>${dayName(d)} ${fmtDate(d,{day:'numeric',month:'long'})}</h3><button class="x" data-a="closeSheet" aria-label="إغلاق">×</button></div>
-    ${sh.length?`<ul class="list">${sh.map(s=>`<li>${chk(s.paid,'paid',`data-id="${s.id}"`)}<div class="grow"><div class="t-${s.type}" style="font-weight:600">${TYPES[s.type].l}</div><div class="muted" style="font-size:12.5px">${esc(hname(s.hid))} · ${money(earn(s))} · ${s.paid?'اتسلمت':'لسه ما اتسلمتش'}</div></div>${del('shifts',s.id)}</li>`).join('')}</ul>`:empty('مفيش نوبات في اليوم ده.')}
+    ${sh.length?`<ul class="list">${sh.map(s=>`<li><div class="grow"><div class="t-${s.type}" style="font-weight:600">${TYPES[s.type].l}</div><div class="muted" style="font-size:12.5px">${esc(hname(s.hid))} · ${money(earn(s))} · ${s.paid?'اتسلمت':'لسه ما اتسلمتش'}</div></div>${del('shifts',s.id)}</li>`).join('')}</ul>`:empty('مفيش نوبات في اليوم ده.')}
     <form class="add" data-f="shift"><input type="hidden" name="date" value="${d}"><input type="hidden" name="type" value="h24"><select name="hid" aria-label="المستشفى">${hospOpts('')}</select><button class="btn" type="submit">إضافة نوبة</button></form>
   </div></div>`;
 }

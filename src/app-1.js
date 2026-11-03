@@ -282,7 +282,6 @@ function vWork(){
     return `<tr><td>${esc(h.name)}</td><td>${l.length}</td><td>${money(e)}</td><td>${money(cr)}</td><td>${money(due)}</td><td>${l.length||cr?`<button class="btn ghost sm" data-a="payAll" data-id="${h.id}">${due>0?'تم الاستلام':'تراجع'}</button>`:''}</td></tr>`;
   }).join('');
   const tN=ms.length,tE=sum(ms,earn),tC=sum(carry,earn),tD=sum(ms.filter(s=>!s.paid),earn)+tC,tR=sum(recvIn(ym),earn);
-  const msl=[...ms,...carry].sort((a,b)=>a.date.localeCompare(b.date));
   const cases=[...S.cases].sort((a,b)=>b.date.localeCompare(a.date)).slice(0,25);
   const cm=S.cases.filter(c=>c.date.startsWith(ym));
   return `
@@ -293,7 +292,6 @@ function vWork(){
     ${card('جدول النوبات',`<div class="cal">${cells}</div>
       <div class="legend">${S.hospitals.map((h,i)=>`<span><span class="chip hc${i}">${i+1}</span> ${esc(h.name)}</span>`).join('')}<span>كل نوبة 24 ساعة (8ص–8ص)</span></div>
       <div class="stats"><div class="stat"><b>${ms.length}</b><span>نوبة</span></div><div class="stat"><b>${nf(hrs)}</b><span>ساعة شغل</span></div></div>`)}
-    ${card('نوبات الشهر',`<p class="sub">دوس "تم الاستلام" لما تقبض النوبة، وساعتها بس بتتحسب في الفلوس. واللي ما اتسلمتش بتترحّل للشهر اللي بعده.</p>`+(msl.length?`<ul class="list">${msl.map(s=>`<li><span class="chip hc${hidx(s.hid)}">${hidx(s.hid)+1}</span><div class="grow"><div>${dayName(s.date)} ${fmtDate(s.date,{day:'numeric',month:'short'})}${s.date.slice(0,7)<ym?' <span class="pill warn">مرحّلة</span>':''}</div><div class="muted" style="font-size:12.5px">${esc(hname(s.hid))} · ${money(earn(s))}</div></div><button class="btn sm${s.paid?' ghost':''}" data-a="paid" data-id="${s.id}">${s.paid?'اتسلّم ✓':'تم الاستلام'}</button></li>`).join('')}</ul>`:empty('مفيش نوبات متسجلة الشهر ده. اختار المستشفى واضغط على اليوم.')))}
     ${card('المستحقات حسب المكان',`<p class="sub">محسوبة من سعر النوبة لكل مستشفى. اللي ما اتسلمش بيتحسب مرحّل للشهر اللي بعده.</p><div class="scroll-x"><table><thead><tr><th>المستشفى</th><th>نوبات</th><th>حساب الشهر</th><th>مرحّل</th><th>لسه</th><th></th></tr></thead><tbody>${rows}</tbody><tfoot><tr><td>الإجمالي</td><td>${tN}</td><td>${money(tE)}</td><td>${money(tC)}</td><td>${money(tD)}</td><td></td></tr></tfoot></table></div>
       <div class="stats"><div class="stat"><b>${money(tE)}</b><span>إجمالي حساب الشهر</span></div><div class="stat"><b>${money(tR)}</b><span>اتسلّم في الشهر ده</span></div><div class="stat"><b>${money(tD)}</b><span>لسه متبقي (شامل المرحّل ${money(tC)})</span></div></div>`,monthName(ym))}
     ${card('المستشفيات وأسعار النوبات',`<ul class="list">${S.hospitals.map(h=>`<li style="flex-wrap:wrap"><input class="grow" style="flex:1 1 130px" value="${esc(h.name)}" data-c="hname" data-id="${h.id}" aria-label="اسم المستشفى"><label class="f" style="flex:1 1 90px">سعر النوبة (24 ساعة)<input type="number" inputmode="decimal" min="0" step="any" value="${h.r24||''}" placeholder="0" data-c="r24" data-id="${h.id}"></label>${del('hospitals',h.id)}</li>`).join('')}</ul>
