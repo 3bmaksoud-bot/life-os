@@ -6,7 +6,7 @@
 if('serviceWorker' in navigator)navigator.serviceWorker.register('sw.js').catch(function(){});
 /* Assembles the app from src/ at load time (same output as build.py). */
 (async()=>{
-  const g=p=>fetch('src/'+p).then(r=>{if(!r.ok)throw new Error(p);return r.text()});
+  const g=p=>fetch('src/'+p,{cache:'no-cache'}).then(r=>{if(!r.ok)throw new Error(p);return r.text()});
   try{
     const [t,c,a,b]=await Promise.all([g('template.html'),g('style.css'),g('app-1.js'),g('app-2.js')]);
     const head='<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><link rel="manifest" href="manifest.webmanifest"><link rel="apple-touch-icon" href="icons/icon-180.png"><meta name="theme-color" content="#06201F"><meta name="mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-title" content="نظام حياتي"><meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">';
