@@ -183,7 +183,7 @@ const duesAll=()=>sum(S.shifts.filter(s=>!s.paid),earn);
 const habitsToday=()=>S.habitLog[todayStr()]||[];
 
 /* ---------- views ---------- */
-const card=(t,body,sm)=>`<section class="card"><h2>${t}${sm?`<small>${sm}</small>`:''}</h2>${body}</section>`;
+const card=(t,body,sm,cls)=>`<section class="card${cls?' '+cls:''}"><h2>${t}${sm?`<small>${sm}</small>`:''}</h2>${body}</section>`;
 const empty=t=>`<p class="empty">${t}</p>`;
 const del=(k,id)=>`<button class="x" data-a="del" data-k="${k}" data-id="${id}" aria-label="حذف">×</button>`;
 const chk=(on,a,attrs)=>`<button class="chk${on?' on':''}" data-a="${a}" ${attrs} aria-pressed="${!!on}" aria-label="تم">${CHECK}</button>`;
@@ -349,7 +349,7 @@ function vMoney(){
       <form class="add" data-f="income"><input type="date" name="date" value="${t}" required aria-label="التاريخ"><input name="src" placeholder="مصدر دخل تاني" required autocomplete="off"><input type="number" name="amt" min="0" step="any" inputmode="decimal" placeholder="المبلغ" required><button class="btn" type="submit">إضافة</button></form>`)}
     ${card('المصروفات',(byCat.length?byCat.map(([c,v])=>`<div class="catbar"><span>${c}</span><div class="bar"><i style="width:${Math.round(v/cmax*100)}%;background:var(--bad)"></i></div><b class="num" style="color:var(--bad)">${nf(v)}</b></div>`).join(''):'')+
       `<form class="add" data-f="expense"><input type="date" name="date" value="${t}" required aria-label="التاريخ"><select name="cat" aria-label="التصنيف">${CATS.map(c=>`<option>${c}</option>`).join('')}</select><input type="number" name="amt" min="0" step="any" inputmode="decimal" placeholder="المبلغ" required><input name="note" placeholder="ملاحظة" autocomplete="off"><button class="btn" type="submit">إضافة</button></form>`+
-      (ex.length?`<ul class="list" style="margin-top:8px">${ex.slice(0,15).map(e=>`<li><span class="num muted" style="min-width:48px;font-size:12.5px">${fmtDate(e.date,{day:'numeric',month:'short'})}</span><span class="grow">${esc(e.note||e.cat)} <span class="muted" style="font-size:12.5px">${e.note?esc(e.cat):''}</span></span><b class="num" style="color:var(--bad)">${money(e.amt)}</b>${del('expenses',e.id)}</li>`).join('')}</ul>`:empty('مفيش مصروفات متسجلة الشهر ده.')))}
+      (ex.length?`<ul class="list" style="margin-top:8px">${ex.slice(0,15).map(e=>`<li><span class="num muted" style="min-width:48px;font-size:12.5px">${fmtDate(e.date,{day:'numeric',month:'short'})}</span><span class="grow">${esc(e.note||e.cat)} <span class="muted" style="font-size:12.5px">${e.note?esc(e.cat):''}</span></span><b class="num" style="color:var(--bad)">${money(e.amt)}</b>${del('expenses',e.id)}</li>`).join('')}</ul>`:empty('مفيش مصروفات متسجلة الشهر ده.')),'','exp')}
     ${(()=>{
       const total=capTotal(),addedM=sum(S.savings.filter(x=>(x.date||'').startsWith(ym)),x=>x.amt),loose=capLoose();
       const yms6=[];{const b0=new Date();for(let i=5;i>=0;i--){const d=new Date(b0.getFullYear(),b0.getMonth()-i,1);yms6.push(d.getFullYear()+'-'+pad(d.getMonth()+1))}}
