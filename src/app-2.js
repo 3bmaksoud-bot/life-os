@@ -189,7 +189,14 @@ const FORMS={
   goal:f=>{S.goals.push({id:uid(),text:f.text.trim(),due:f.due,done:false})},
   income:f=>{S.income.push({id:uid(),date:f.date,src:f.src.trim(),amt:num(f.amt)})},
   commit:f=>{S.commits.push({id:uid(),name:f.name.trim(),amt:num(f.amt)})},
-  expense:f=>{S.expenses.push({id:uid(),date:f.date,cat:f.cat,amt:num(f.amt),note:(f.note||'').trim()})},
+  expense:f=>{
+    if(f.cat===FAWRY_CAT){
+      let k=S.capital.find(x=>x.name.includes('فوري'));
+      if(!k){k={id:uid(),name:'مدخرات فوري',base:0};S.capital.push(k)}
+      S.savings.push({id:uid(),date:f.date,bucket:k.id,amt:num(f.amt),note:(f.note||'').trim()||'من الإضافة السريعة'});
+      toast('اتضاف '+money(num(f.amt))+' لمدخرات فوري');
+    }else S.expenses.push({id:uid(),date:f.date,cat:f.cat,amt:num(f.amt),note:(f.note||'').trim()});
+  },
   saving:f=>{S.savings.push({id:uid(),date:f.date,bucket:f.bucket,amt:num(f.amt),note:(f.note||'').trim()})},
   bucket:f=>{S.capital.push({id:uid(),name:f.name.trim(),base:0})},
   habit:f=>{S.habits.push({id:uid(),name:f.name.trim()})},
